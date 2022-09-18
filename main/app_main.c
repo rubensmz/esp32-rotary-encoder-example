@@ -34,6 +34,7 @@
 
 #define ROT_ENC_A_GPIO (CONFIG_ROT_ENC_A_GPIO)
 #define ROT_ENC_B_GPIO (CONFIG_ROT_ENC_B_GPIO)
+#define ROT_ENC_SW_GPIO (CONFIG_ROT_ENC_SW_GPIO)
 
 #define ENABLE_HALF_STEPS false  // Set to true to enable tracking of rotary encoder at half step resolution
 #define RESET_AT          0      // Set to a positive non-zero number to reset the position if this value is exceeded
@@ -46,7 +47,7 @@ void app_main()
 
     // Initialise the rotary encoder device with the GPIOs for A and B signals
     rotary_encoder_info_t info = { 0 };
-    ESP_ERROR_CHECK(rotary_encoder_init(&info, ROT_ENC_A_GPIO, ROT_ENC_B_GPIO));
+    ESP_ERROR_CHECK(rotary_encoder_init(&info, ROT_ENC_A_GPIO, ROT_ENC_B_GPIO, ROT_ENC_SW_GPIO));
     ESP_ERROR_CHECK(rotary_encoder_enable_half_steps(&info, ENABLE_HALF_STEPS));
 #ifdef FLIP_DIRECTION
     ESP_ERROR_CHECK(rotary_encoder_flip_direction(&info));
@@ -63,16 +64,18 @@ void app_main()
         rotary_encoder_event_t event = { 0 };
         if (xQueueReceive(event_queue, &event, 1000 / portTICK_PERIOD_MS) == pdTRUE)
         {
-            ESP_LOGI(TAG, "Event: position %d, direction %s", event.state.position,
-                     event.state.direction ? (event.state.direction == ROTARY_ENCODER_DIRECTION_CLOCKWISE ? "CW" : "CCW") : "NOT_SET");
+            ESP_LOGI(TAG, "Event: position %d, direction %s, sw %s", event.state.position,
+                     event.state.direction ? (event.state.direction == ROTARY_ENCODER_DIRECTION_CLOCKWISE ? "CW" : "CCW") : "NOT_SET",
+                     event.state.sw ? (event.state.sw == ROTARY_ENCODER_SW_OPEN ? "OPEN" : "CLOSED") : "NOT_SET");
         }
         else
         {
             // Poll current position and direction
             rotary_encoder_state_t state = { 0 };
             ESP_ERROR_CHECK(rotary_encoder_get_state(&info, &state));
-            ESP_LOGI(TAG, "Poll: position %d, direction %s", state.position,
-                     state.direction ? (state.direction == ROTARY_ENCODER_DIRECTION_CLOCKWISE ? "CW" : "CCW") : "NOT_SET");
+            ESP_LOGI(TAG, "Poll: position %d, direction %s, sw %s", state.position,
+                     state.direction ? (state.direction == ROTARY_ENCODER_DIRECTION_CLOCKWISE ? "CW" : "CCW") : "NOT_SET",
+                     state.sw ? (state.sw == ROTARY_ENCODER_SW_OPEN ? "OPEN" : "CLOSED") : "NOT_SET");
 
             // Reset the device
             if (RESET_AT && (state.position >= RESET_AT || state.position <= -RESET_AT))
